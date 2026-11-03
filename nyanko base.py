@@ -55,7 +55,6 @@ def get_font(size: int) -> pg.font.Font:
     )
     return pg.font.Font(name, size)
 
-
 def draw_hp_bar(screen: pg.Surface, rct: pg.Rect, hp: int, max_hp: int) -> None:
     ratio = max(0, hp) / max_hp
     bar = pg.Rect(rct.left, rct.top - 10, rct.width, 6)
@@ -237,7 +236,6 @@ class Wallet:
 def make_buttons() -> list[pg.Rect]:
     return [pg.Rect(20 + i * 170, 540, 160, 90) for i in range(len(CAT_SPECS))]
 
-
 def try_spawn(idx: int, wallet: Wallet, cooldowns: list[int],
               cats: pg.sprite.Group, cat_base: Base) -> None:
     spec = CAT_SPECS[idx]
@@ -245,7 +243,6 @@ def try_spawn(idx: int, wallet: Wallet, cooldowns: list[int],
         return
     cats.add(Unit(spec, True, cat_base.rect.left))
     cooldowns[idx] = spec["cooldown"]
-
 
 def draw_ui(screen: pg.Surface, font: pg.font.Font, wallet: Wallet,
             cooldowns: list[int], buttons: list[pg.Rect]) -> None:
@@ -263,12 +260,10 @@ def draw_ui(screen: pg.Surface, font: pg.font.Font, wallet: Wallet,
     money = font.render(f"お金 {int(wallet.money)} / {wallet.max_money}円", True, (0, 0, 0))
     screen.blit(money, (WIDTH - money.get_width() - 20, 20))
 
-
 def draw_field(screen: pg.Surface) -> None:
     screen.fill((135, 206, 235))
     pg.draw.rect(screen, (150, 110, 70), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
     pg.draw.line(screen, (0, 0, 0), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
-
 
 def show_result(screen: pg.Surface, font: pg.font.Font, message: str) -> None:
     overlay = pg.Surface((WIDTH, HEIGHT))
@@ -278,7 +273,6 @@ def show_result(screen: pg.Surface, font: pg.font.Font, message: str) -> None:
     screen.blit(text, text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
     pg.display.update()
     time.sleep(3)
-
 
 def main() -> None:
     pg.display.set_caption("ネコ大戦争（仮）")
