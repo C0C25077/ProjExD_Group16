@@ -19,8 +19,18 @@ WIDTH, HEIGHT = 1100, 650
 GROUND_Y = 500  # 地面の高さ（ユニットの足元のy座標）
 FPS = 50
 ENEMY_INTERVAL = 150  # 敵が出現する間隔（フレーム数）
+#--------------------------------------------------------------------------------追加機能3
+BOSS_TIME = 1000  # ボスが登場するまでの時間（50FPS × 20秒 = 1000フレーム）
+#--------------------------------------------------------------------------------追加機能3
 BASE_HP = 1000
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+#------------------------------------------------------------------難易度（ステージ）の設定（追加機能3）
+STAGE_SPECS = [
+    {"name": "ノーマル", "rate": 1.0, "color": (100, 200, 100)},
+    {"name": "ハード", "rate": 1.2, "color": (220, 80, 80)},
+]
+#------------------------------------------------------------------
 
 # 味方ユニットの性能（追加機能として種類を増やしやすいように辞書で管理）
 CAT_SPECS = [
@@ -45,6 +55,13 @@ ENEMY_SPECS = [
      "color": (255, 170, 200), "size": (60, 80)},
 ]
 
+#--------------------------------------------------------- ボスユニットの性能（追加機能3）ボスの追加
+BOSS_SPEC = {
+    "name": "ボス", "hp": 1500, "atk": 40, "speed": 0.8,
+    "range": 40, "interval": 80,
+    "color": (150, 75, 0), "size": (90, 120)
+}
+#----------------------------------------------------------
 
 def get_font(size: int) -> pg.font.Font:
     """
@@ -102,19 +119,24 @@ class Unit(pg.sprite.Sprite):
     """
     味方・敵のユニットに関するクラス
     """
-    def __init__(self, spec: dict, is_cat: bool, x: int) -> None:
+    def __init__(self, spec: dict, is_cat: bool, x: int, rate: float = 1.0) -> None:
         """
         引数 spec：ユニットの性能を表す辞書
         引数 is_cat：Trueなら味方（左へ進む），Falseなら敵（右へ進む）
         引数 x：出現位置のx座標（味方は右端，敵は左端をこの座標に合わせる）
+        引数 rate：敵ユニットのステータス倍率（ハード時 1.2）
         """
         super().__init__()
-        self.spec = spec
-        self.hp = spec["hp"]
+        self.spec = spec.copy()
+        if not is_cat:  # 敵の場合はステータス（HP・攻撃力）を強化
+            self.spec["hp"] = int(spec["hp"] * rate)
+            self.spec["atk"] = int(spec["atk"] * rate)
+
+        self.hp = self.spec["hp"]
         self.dir = -1 if is_cat else +1
-        self.atk_timer = spec["interval"]  # 最初の1発はすぐ撃てるようにする
-        self.image = pg.Surface(spec["size"])
-        self.image.fill(spec["color"])
+        self.atk_timer = self.spec["interval"]  # 最初の1発はすぐ撃てるようにする
+        self.image = pg.Surface(self.spec["size"])
+        self.image.fill(self.spec["color"])
         pg.draw.rect(self.image, (0, 0, 0), self.image.get_rect(), 2)
         self.rect = self.image.get_rect()
         self.rect.bottom = GROUND_Y
@@ -270,21 +292,65 @@ def show_result(screen: pg.Surface, font: pg.font.Font, message: str) -> None:
     pg.display.update()
     time.sleep(3)
 
+#------------------------------------------------------------------------------------------------------------------------#追加機能3
+def select_stage_screen(screen: pg.Surface, font: pg.font.Font, title_font: pg.font.Font) -> dict | None:    
+    """
+    ステージ（難易度）選択画面
+    戻り値：選択した難易度の設定辞書
+    """
+    clock = pg.time.Clock()
+    buttons = [
+        pg.Rect(WIDTH // 2 - 150, 250 + i * 120, 300, 80)
+        for i in range(len(STAGE_SPECS))
+    ]
+
+    while True:
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                return None
+            if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                for i, btn in enumerate(buttons):
+                    if btn.collidepoint(event.pos):
+                        return STAGE_SPECS[i]       #追加機能3
+
+        screen.fill((240, 230, 200))
+        title = title_font.render("ステージ選択", True, (0, 0, 0))
+        screen.blit(title, title.get_rect(center=(WIDTH // 2, 130)))
+
+        for spec, btn in zip(STAGE_SPECS, buttons):
+            pg.draw.rect(screen, spec["color"], btn, border_radius=10)
+            pg.draw.rect(screen, (0, 0, 0), btn, 3, border_radius=10)
+            text = font.render(spec["name"], True, (255, 255, 255))
+            screen.blit(text, text.get_rect(center=btn.center))
+
+        pg.display.update()
+        clock.tick(FPS)
+#------------------------------------------------------------------------------------- #追加機能3
 
 def main() -> None:
     pg.display.set_caption("ネコ大戦争（仮）")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     font = get_font(26)
     big_font = get_font(90)
+    title_font = get_font(50)
     clock = pg.time.Clock()
-
+#----------------------------------------------------------------追加機能3　ゲーム開始時に難易度の選択
+    stage_spec = select_stage_screen(screen, font, title_font)
+    if stage_spec is None:
+        return
+#----------------------------------------------------------------追加機能3
+#--------------------------------------追加機能3 難易度(rate)の倍率を取得
+    enemy_rate = stage_spec["rate"]
+#--------------------------------------追加機能3
     cat_base, enemy_base = Base(True), Base(False)
     cats, enemies = pg.sprite.Group(), pg.sprite.Group()
     wallet = Wallet()
     cooldowns = [0] * len(CAT_SPECS)
     buttons = make_buttons()
     tmr = 0
-
+    #------------------------------------------------------------------
+    boss_spawned = False  # ボスが出現済みか管理するフラグ（追加機能3）
+    #-------------------------------------------------------------------
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
@@ -299,9 +365,17 @@ def main() -> None:
         wallet.update()
         for i in range(len(cooldowns)):
             cooldowns[i] = max(0, cooldowns[i] - 1)
+
+        #-------------------------------------------------------------------------- 一定時間経過後にボスが登場する処理（追加機能3）
+        if not boss_spawned and tmr >= BOSS_TIME:
+            enemies.add(Unit(BOSS_SPEC, False, enemy_base.rect.right, enemy_rate))
+            boss_spawned = True
+        #---------------------------------------------------------------------------
+        # 通常敵の出現（倍率適用）
         if tmr % ENEMY_INTERVAL == ENEMY_INTERVAL - 1:
             spec = random.choices(ENEMY_SPECS, weights=[3, 1])[0]
-            enemies.add(Unit(spec, False, enemy_base.rect.right))
+            enemies.add(Unit(spec, False, enemy_base.rect.right, enemy_rate))
+
         cats.update(enemies, enemy_base)
         enemies.update(cats, cat_base)
 
