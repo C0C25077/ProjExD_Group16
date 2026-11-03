@@ -1,12 +1,17 @@
 """
-にゃんこ大戦争風ゲームの共通基本機能（ベース部分）
+にゃんこ大戦争風ゲームの共通基本機能（ベース部分）＋追加機能（画像・アニメ・BGM・効果音）
 
 右側の自陣から味方ユニット（ネコ）を出撃させ，左側の敵陣を攻略するゲーム．
 お金は時間とともに増え，お金とクールダウンの許す範囲でユニットを出撃できる．
 ユニットは敵に当たると立ち止まって攻撃し，敵陣のHPを0にすれば勝利．
 
 操作：数字キー1～3，または画面下のボタンのクリックでユニットを出撃
+      Mキーで音（BGM・効果音）のミュート切り替え
+
+【追加機能】画像，歩行アニメ，攻撃時の効果音，BGM，ミュートキー
+素材ファイルが見つからない場合は，元の四角形・無音のまま動作する．
 """
+import functools
 import os
 import random
 import sys
@@ -22,27 +27,77 @@ ENEMY_INTERVAL = 150  # 敵が出現する間隔（フレーム数）
 BASE_HP = 1000
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+# ======================================================================
+# 【追加機能】素材ファイルの設定（★ここだけ自分の素材に合わせて書き換える★）
+# ======================================================================
+IMG_DIR = "fig"      # 画像を入れるフォルダ名（このpyファイルと同じ場所に作る）
+SND_DIR = "sound"    # 音を入れるフォルダ名（このpyファイルと同じ場所に作る）
+
+# 背景画像（画面の上～地面までを埋める．使わない場合は "" にする）
+BG_FILE = "bg.png"
+
+# 城の画像（自陣・敵陣）
+BASE_IMG_FILES = {
+    "cat": "cat_base.png",      # ★自陣の画像ファイル名
+    "enemy": "enemy_base.png",  # ★敵陣の画像ファイル名
+}
+
+# 素材の絵が向いている方向（Trueなら左向き，Falseなら右向き）
+# 味方は左へ，敵は右へ進むので，素材の向きが逆なら自動で左右反転する
+CAT_IMG_FACE_LEFT = True
+ENEMY_IMG_FACE_LEFT = False
+
+# 歩行アニメ：画像を切り替える間隔（フレーム数），攻撃ポーズを見せる長さ（フレーム数）
+ANIM_INTERVAL = 10
+ATK_POSE_FRAMES = 12
+
+# 効果音（★ファイル名を自分の素材に合わせる．wavかoggがおすすめ）
+SE_FILES = {
+    "attack_cat": "se_attack_cat.wav",      # ★味方の攻撃音
+    "attack_enemy": "se_attack_enemy.wav",  # ★敵の攻撃音
+    "spawn": "se_spawn.wav",                # ★出撃音
+    "win": "se_win.wav",                    # ★勝利音
+    "lose": "se_lose.wav",                  # ★敗北音
+}
+BGM_FILE = "bgm.mp3"   # ★BGM（mp3，ogg，wavなど）
+BGM_VOLUME = 0.4       # BGMの音量（0.0～1.0）
+SE_VOLUME = 0.6        # 効果音の音量（0.0～1.0）
+SE_MIN_INTERVAL = 80   # 同じ効果音を連続で鳴らさない最小間隔（ミリ秒）
+# ======================================================================
+
 # 味方ユニットの性能（追加機能として種類を増やしやすいように辞書で管理）
+# "walk"：歩行アニメの画像ファイル名のリスト（1枚だけでもOK，何枚でも増やせる）
+# "attack"：攻撃ポーズの画像ファイル名（使わない場合は ""）
 CAT_SPECS = [
     {"name": "ネコ", "cost": 50, "hp": 100, "atk": 10, "speed": 2.0,
      "range": 20, "interval": 40, "cooldown": 100,
-     "color": (255, 220, 160), "size": (40, 50)},
+     "color": (255, 220, 160), "size": (40, 50),
+     "walk": ["neko_walk1.png", "neko_walk2.png"],     # ★
+     "attack": "neko_attack.png"},                     # ★
     {"name": "タンク", "cost": 100, "hp": 500, "atk": 6, "speed": 1.2,
      "range": 20, "interval": 50, "cooldown": 200,
-     "color": (200, 200, 255), "size": (50, 70)},
+     "color": (200, 200, 255), "size": (50, 70),
+     "walk": ["tank_walk1.png", "tank_walk2.png"],     # ★
+     "attack": "tank_attack.png"},                     # ★
     {"name": "キック", "cost": 150, "hp": 120, "atk": 35, "speed": 1.8,
      "range": 60, "interval": 70, "cooldown": 250,
-     "color": (255, 150, 150), "size": (40, 60)},
+     "color": (255, 150, 150), "size": (40, 60),
+     "walk": ["kick_walk1.png", "kick_walk2.png"],     # ★
+     "attack": "kick_attack.png"},                     # ★
 ]
 
 # 敵ユニットの性能
 ENEMY_SPECS = [
     {"name": "ワンコ", "hp": 120, "atk": 8, "speed": 1.5,
      "range": 20, "interval": 45,
-     "color": (240, 240, 240), "size": (40, 40)},
+     "color": (240, 240, 240), "size": (40, 40),
+     "walk": ["wanko_walk1.png", "wanko_walk2.png"],   # ★
+     "attack": "wanko_attack.png"},                    # ★
     {"name": "ブタ", "hp": 500, "atk": 20, "speed": 1.0,
      "range": 20, "interval": 60,
-     "color": (255, 170, 200), "size": (60, 80)},
+     "color": (255, 170, 200), "size": (60, 80),
+     "walk": ["buta_walk1.png", "buta_walk2.png"],     # ★
+     "attack": "buta_attack.png"},                     # ★
 ]
 
 
@@ -56,6 +111,117 @@ def get_font(size: int) -> pg.font.Font:
         "meiryo,yugothic,msgothic,notosanscjkjp,hiraginosans,takaopgothic"
     )
     return pg.font.Font(name, size)
+
+
+@functools.lru_cache(maxsize=None)
+def load_image(filename: str, size: tuple, color: tuple,
+               flip: bool = False, border: int = 2) -> pg.Surface:
+    """
+    画像を読み込んで指定サイズに拡縮する（同じ引数なら読み込み済みのものを使い回す）
+    画像ファイルが見つからない場合は，元の四角形（色付き＋黒枠）で代用する
+    引数 filename：IMG_DIR内の画像ファイル名
+    引数 size：拡縮後の大きさ（幅，高さ）
+    引数 color：代用の四角形の色
+    引数 flip：Trueなら左右反転する
+    引数 border：代用の四角形の枠線の太さ
+    戻り値：画像のSurface
+    """
+    path = os.path.join(IMG_DIR, filename)
+    try:
+        img = pg.image.load(path).convert_alpha()
+        img = pg.transform.smoothscale(img, size)
+        return pg.transform.flip(img, True, False) if flip else img
+    except (pg.error, FileNotFoundError):
+        print(f"[画像なし] {path} が読み込めないため四角形で代用します")
+        img = pg.Surface(size)
+        img.fill(color)
+        pg.draw.rect(img, (0, 0, 0), img.get_rect(), border)
+        return img
+
+
+def load_background() -> "pg.Surface | None":
+    """
+    背景画像を読み込む（空から地面までの大きさに拡縮する）
+    戻り値：背景のSurface（設定なし，または読み込めない場合はNone）
+    """
+    if not BG_FILE:
+        return None
+    path = os.path.join(IMG_DIR, BG_FILE)
+    try:
+        img = pg.image.load(path).convert()
+        return pg.transform.smoothscale(img, (WIDTH, GROUND_Y))
+    except (pg.error, FileNotFoundError):
+        print(f"[画像なし] {path} が読み込めないため背景は単色にします")
+        return None
+
+
+class SoundManager:
+    """
+    BGM・効果音・ミュートに関するクラス
+    音声ファイルや音声デバイスがない場合でも，エラーにならず無音で動作する
+    """
+    def __init__(self) -> None:
+        self.muted = False
+        self.enabled = True  # 音声デバイスが使えるか
+        self.ses: dict[str, pg.mixer.Sound] = {}
+        self.last_play: dict[str, int] = {}  # 効果音ごとの最後に鳴らした時刻（ミリ秒）
+        try:
+            pg.mixer.init()
+        except pg.error:
+            print("[音なし] 音声デバイスが使えないため無音で動作します")
+            self.enabled = False
+            return
+        for name, filename in SE_FILES.items():
+            try:
+                snd = pg.mixer.Sound(os.path.join(SND_DIR, filename))
+                snd.set_volume(SE_VOLUME)
+                self.ses[name] = snd
+            except (pg.error, FileNotFoundError):
+                print(f"[音なし] {os.path.join(SND_DIR, filename)} が読み込めません")
+
+    def play_bgm(self) -> None:
+        """
+        BGMをループ再生する（ミュート中は音量0で再生しておく）
+        """
+        if not self.enabled:
+            return
+        try:
+            pg.mixer.music.load(os.path.join(SND_DIR, BGM_FILE))
+            pg.mixer.music.set_volume(0 if self.muted else BGM_VOLUME)
+            pg.mixer.music.play(loops=-1)
+        except (pg.error, FileNotFoundError):
+            print(f"[音なし] {os.path.join(SND_DIR, BGM_FILE)} が読み込めません")
+
+    def stop_bgm(self) -> None:
+        """
+        BGMを停止する
+        """
+        if self.enabled:
+            pg.mixer.music.stop()
+
+    def play_se(self, name: str) -> None:
+        """
+        効果音を1回鳴らす（ミュート中，または直前に鳴らしたばかりなら鳴らさない）
+        引数 name：SE_FILESのキー名
+        """
+        if not self.enabled or self.muted or name not in self.ses:
+            return
+        now = pg.time.get_ticks()
+        if now - self.last_play.get(name, -SE_MIN_INTERVAL) < SE_MIN_INTERVAL:
+            return
+        self.ses[name].play()
+        self.last_play[name] = now
+
+    def toggle_mute(self) -> None:
+        """
+        ミュートのON/OFFを切り替える
+        """
+        self.muted = not self.muted
+        if not self.enabled:
+            return
+        pg.mixer.music.set_volume(0 if self.muted else BGM_VOLUME)
+        if self.muted:
+            pg.mixer.stop()  # 鳴っている効果音も止める
 
 
 def draw_hp_bar(screen: pg.Surface, rct: pg.Rect, hp: int, max_hp: int) -> None:
@@ -82,9 +248,10 @@ class Base:
         """
         self.hp = BASE_HP
         self.max_hp = BASE_HP
-        self.image = pg.Surface((80, 200))
-        self.image.fill((100, 150, 255) if is_cat else (255, 120, 120))
-        pg.draw.rect(self.image, (0, 0, 0), self.image.get_rect(), 3)
+        self.image = load_image(
+            BASE_IMG_FILES["cat" if is_cat else "enemy"], (80, 200),
+            (100, 150, 255) if is_cat else (255, 120, 120), border=3
+        )
         self.rect = self.image.get_rect()
         self.rect.bottom = GROUND_Y
         self.rect.centerx = WIDTH - 80 if is_cat else 80
@@ -111,11 +278,22 @@ class Unit(pg.sprite.Sprite):
         super().__init__()
         self.spec = spec
         self.hp = spec["hp"]
+        self.is_cat = is_cat
         self.dir = -1 if is_cat else +1
         self.atk_timer = spec["interval"]  # 最初の1発はすぐ撃てるようにする
-        self.image = pg.Surface(spec["size"])
-        self.image.fill(spec["color"])
-        pg.draw.rect(self.image, (0, 0, 0), self.image.get_rect(), 2)
+        self.anim_timer = 0  # 歩行アニメ用のカウンタ（歩いたフレーム数）
+
+        # 素材の向きと進行方向が逆なら左右反転する
+        face_left = CAT_IMG_FACE_LEFT if is_cat else ENEMY_IMG_FACE_LEFT
+        flip = face_left != (self.dir < 0)
+        self.walk_imgs = [
+            load_image(f, spec["size"], spec["color"], flip) for f in spec["walk"]
+        ]
+        self.atk_img = (
+            load_image(spec["attack"], spec["size"], spec["color"], flip)
+            if spec.get("attack") else None
+        )
+        self.image = self.walk_imgs[0]
         self.rect = self.image.get_rect()
         self.rect.bottom = GROUND_Y
         if is_cat:
@@ -148,11 +326,26 @@ class Unit(pg.sprite.Sprite):
             return base
         return None
 
-    def update(self, opponents: pg.sprite.Group, base: Base) -> None:
+    def animate(self, target: "Unit | Base | None") -> None:
         """
-        HP判定，攻撃，移動を行う
+        状況に応じて表示する画像を切り替える
+        歩行中は歩行画像を順番に切り替え，攻撃した直後は攻撃ポーズ，それ以外は立ち絵にする
+        引数 target：現在の攻撃対象（歩行中ならNone）
+        """
+        if target is None:
+            idx = (self.anim_timer // ANIM_INTERVAL) % len(self.walk_imgs)
+            self.image = self.walk_imgs[idx]
+        elif self.atk_img is not None and self.atk_timer < ATK_POSE_FRAMES:
+            self.image = self.atk_img
+        else:
+            self.image = self.walk_imgs[0]
+
+    def update(self, opponents: pg.sprite.Group, base: Base, sounds: SoundManager) -> None:
+        """
+        HP判定，攻撃，移動，アニメーションを行う
         引数 opponents：相手側ユニットのグループ
         引数 base：相手側の城
+        引数 sounds：効果音を鳴らすためのSoundManager
         """
         if self.hp <= 0:
             self.kill()
@@ -161,11 +354,14 @@ class Unit(pg.sprite.Sprite):
         if target is None:
             self.x += self.dir * self.spec["speed"]
             self.rect.centerx = int(self.x)
-            return
-        self.atk_timer += 1
-        if self.atk_timer >= self.spec["interval"]:
-            target.hp -= self.spec["atk"]
-            self.atk_timer = 0
+            self.anim_timer += 1
+        else:
+            self.atk_timer += 1
+            if self.atk_timer >= self.spec["interval"]:
+                target.hp -= self.spec["atk"]
+                self.atk_timer = 0
+                sounds.play_se("attack_cat" if self.is_cat else "attack_enemy")
+        self.animate(target)
 
 
 class Wallet:
@@ -204,7 +400,7 @@ def make_buttons() -> list[pg.Rect]:
 
 
 def try_spawn(idx: int, wallet: Wallet, cooldowns: list[int],
-              cats: pg.sprite.Group, cat_base: Base) -> None:
+              cats: pg.sprite.Group, cat_base: Base, sounds: SoundManager) -> None:
     """
     お金とクールダウンの条件を満たせば，味方ユニットを出撃させる
     引数 idx：CAT_SPECSの番号
@@ -212,12 +408,14 @@ def try_spawn(idx: int, wallet: Wallet, cooldowns: list[int],
     引数 cooldowns：ユニットごとの残りクールダウン（フレーム数）
     引数 cats：味方ユニットのグループ
     引数 cat_base：自陣
+    引数 sounds：出撃音を鳴らすためのSoundManager
     """
     spec = CAT_SPECS[idx]
     if cooldowns[idx] > 0 or not wallet.pay(spec["cost"]):
         return
     cats.add(Unit(spec, True, cat_base.rect.left))
     cooldowns[idx] = spec["cooldown"]
+    sounds.play_se("spawn")
 
 
 def draw_ui(screen: pg.Surface, font: pg.font.Font, wallet: Wallet,
@@ -245,12 +443,29 @@ def draw_ui(screen: pg.Surface, font: pg.font.Font, wallet: Wallet,
     screen.blit(money, (WIDTH - money.get_width() - 20, 20))
 
 
-def draw_field(screen: pg.Surface) -> None:
+def draw_sound_status(screen: pg.Surface, font: pg.font.Font, sounds: SoundManager) -> None:
+    """
+    音の状態（ON/OFF）とミュートキーの案内を左上に描画する
+    引数 screen：画面Surface
+    引数 font：表示用フォント
+    引数 sounds：音を管理するSoundManager
+    """
+    if not sounds.enabled:
+        label = "音：使用不可"
+    else:
+        label = f"M：音 {'OFF' if sounds.muted else 'ON'}"
+    screen.blit(font.render(label, True, (0, 0, 0)), (20, 20))
+
+
+def draw_field(screen: pg.Surface, bg: "pg.Surface | None") -> None:
     """
     背景（空と地面）を描画する
     引数 screen：画面Surface
+    引数 bg：背景画像（Noneなら単色の空）
     """
     screen.fill((135, 206, 235))
+    if bg is not None:
+        screen.blit(bg, (0, 0))
     pg.draw.rect(screen, (150, 110, 70), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
     pg.draw.line(screen, (0, 0, 0), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
 
@@ -278,6 +493,10 @@ def main() -> None:
     big_font = get_font(90)
     clock = pg.time.Clock()
 
+    bg = load_background()
+    sounds = SoundManager()
+    sounds.play_bgm()
+
     cat_base, enemy_base = Base(True), Base(False)
     cats, enemies = pg.sprite.Group(), pg.sprite.Group()
     wallet = Wallet()
@@ -289,12 +508,14 @@ def main() -> None:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return
+            if event.type == pg.KEYDOWN and event.key == pg.K_m:
+                sounds.toggle_mute()
             if event.type == pg.KEYDOWN and pg.K_1 <= event.key < pg.K_1 + len(CAT_SPECS):
-                try_spawn(event.key - pg.K_1, wallet, cooldowns, cats, cat_base)
+                try_spawn(event.key - pg.K_1, wallet, cooldowns, cats, cat_base, sounds)
             if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
                 for i, btn in enumerate(buttons):
                     if btn.collidepoint(event.pos):
-                        try_spawn(i, wallet, cooldowns, cats, cat_base)
+                        try_spawn(i, wallet, cooldowns, cats, cat_base, sounds)
 
         wallet.update()
         for i in range(len(cooldowns)):
@@ -302,10 +523,10 @@ def main() -> None:
         if tmr % ENEMY_INTERVAL == ENEMY_INTERVAL - 1:
             spec = random.choices(ENEMY_SPECS, weights=[3, 1])[0]
             enemies.add(Unit(spec, False, enemy_base.rect.right))
-        cats.update(enemies, enemy_base)
-        enemies.update(cats, cat_base)
+        cats.update(enemies, enemy_base, sounds)
+        enemies.update(cats, cat_base, sounds)
 
-        draw_field(screen)
+        draw_field(screen, bg)
         enemy_base.draw(screen)
         cat_base.draw(screen)
         cats.draw(screen)
@@ -313,11 +534,16 @@ def main() -> None:
         for unit in list(cats) + list(enemies):
             draw_hp_bar(screen, unit.rect, unit.hp, unit.spec["hp"])
         draw_ui(screen, font, wallet, cooldowns, buttons)
+        draw_sound_status(screen, font, sounds)
 
         if enemy_base.hp <= 0:
+            sounds.stop_bgm()
+            sounds.play_se("win")
             show_result(screen, big_font, "勝利！")
             return
         if cat_base.hp <= 0:
+            sounds.stop_bgm()
+            sounds.play_se("lose")
             show_result(screen, big_font, "敗北…")
             return
         pg.display.update()
