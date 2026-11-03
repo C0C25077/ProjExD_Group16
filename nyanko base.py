@@ -30,15 +30,15 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 # ======================================================================
 # 【追加機能】素材ファイルの設定（★ここだけ自分の素材に合わせて書き換える★）
 # ======================================================================
-IMG_DIR = "fig"      # 画像を入れるフォルダ名（このpyファイルと同じ場所に作る）
-SND_DIR = "sound"    # 音を入れるフォルダ名（このpyファイルと同じ場所に作る）
+IMG_DIR = "fig"  # 画像を入れるフォルダ名（このpyファイルと同じ場所に作る）
+SND_DIR = "sound"  # 音を入れるフォルダ名（このpyファイルと同じ場所に作る）
 
 # 背景画像（画面の上～地面までを埋める．使わない場合は "" にする）
 BG_FILE = "bg.png"
 
 # 城の画像（自陣・敵陣）
 BASE_IMG_FILES = {
-    "cat": "cat_base.png",      # ★自陣の画像ファイル名
+    "cat": "cat_base.png",  # ★自陣の画像ファイル名
     "enemy": "enemy_base.png",  # ★敵陣の画像ファイル名
 }
 
@@ -53,16 +53,16 @@ ATK_POSE_FRAMES = 12
 
 # 効果音（★ファイル名を自分の素材に合わせる．wavかoggがおすすめ）
 SE_FILES = {
-    "attack_cat": "se_attack_cat.wav",      # ★味方の攻撃音
+    "attack_cat": "se_attack_cat.wav",  # ★味方の攻撃音
     "attack_enemy": "se_attack_enemy.wav",  # ★敵の攻撃音
-    "spawn": "se_spawn.wav",                # ★出撃音
-    "win": "se_win.wav",                    # ★勝利音
-    "lose": "se_lose.wav",                  # ★敗北音
+    "spawn": "se_spawn.wav",  # ★出撃音
+    "win": "se_win.wav",  # ★勝利音
+    "lose": "se_lose.wav",  # ★敗北音
 }
-BGM_FILE = "bgm.mp3"   # ★BGM（mp3，ogg，wavなど）
-BGM_VOLUME = 0.4       # BGMの音量（0.0～1.0）
-SE_VOLUME = 0.6        # 効果音の音量（0.0～1.0）
-SE_MIN_INTERVAL = 80   # 同じ効果音を連続で鳴らさない最小間隔（ミリ秒）
+BGM_FILE = "bgm.mp3"  # ★BGM（mp3，ogg，wavなど）
+BGM_VOLUME = 0.4  # BGMの音量（0.0～1.0）
+SE_VOLUME = 0.6  # 効果音の音量（0.0～1.0）
+SE_MIN_INTERVAL = 80  # 同じ効果音を連続で鳴らさない最小間隔（ミリ秒）
 # ======================================================================
 
 # 味方ユニットの性能（追加機能として種類を増やしやすいように辞書で管理）
@@ -72,18 +72,18 @@ CAT_SPECS = [
     {"name": "ネコ", "cost": 50, "hp": 100, "atk": 10, "speed": 2.0,
      "range": 20, "interval": 40, "cooldown": 100,
      "color": (255, 220, 160), "size": (40, 50),
-     "walk": ["neko_walk1.png", "neko_walk2.png"],     # ★
-     "attack": "neko_attack.png"},                     # ★
+     "walk": ["neko_walk1.png", "neko_walk2.png"],  # ★
+     "attack": "neko_attack.png"},  # ★
     {"name": "タンク", "cost": 100, "hp": 500, "atk": 6, "speed": 1.2,
      "range": 20, "interval": 50, "cooldown": 200,
      "color": (200, 200, 255), "size": (50, 70),
-     "walk": ["tank_walk1.png", "tank_walk2.png"],     # ★
-     "attack": "tank_attack.png"},                     # ★
+     "walk": ["tank_walk1.png", "tank_walk2.png"],  # ★
+     "attack": "tank_attack.png"},  # ★
     {"name": "キック", "cost": 150, "hp": 120, "atk": 35, "speed": 1.8,
      "range": 60, "interval": 70, "cooldown": 250,
      "color": (255, 150, 150), "size": (40, 60),
-     "walk": ["kick_walk1.png", "kick_walk2.png"],     # ★
-     "attack": "kick_attack.png"},                     # ★
+     "walk": ["kick_walk1.png", "kick_walk2.png"],  # ★
+     "attack": "kick_attack.png"},  # ★
 ]
 
 # 敵ユニットの性能
@@ -91,13 +91,13 @@ ENEMY_SPECS = [
     {"name": "ワンコ", "hp": 120, "atk": 8, "speed": 1.5,
      "range": 20, "interval": 45,
      "color": (240, 240, 240), "size": (40, 40),
-     "walk": ["wanko_walk1.png", "wanko_walk2.png"],   # ★
-     "attack": "wanko_attack.png"},                    # ★
+     "walk": ["wanko_walk1.png", "wanko_walk2.png"],  # ★
+     "attack": "wanko_attack.png"},  # ★
     {"name": "ブタ", "hp": 500, "atk": 20, "speed": 1.0,
      "range": 20, "interval": 60,
      "color": (255, 170, 200), "size": (60, 80),
-     "walk": ["buta_walk1.png", "buta_walk2.png"],     # ★
-     "attack": "buta_attack.png"},                     # ★
+     "walk": ["buta_walk1.png", "buta_walk2.png"],  # ★
+     "attack": "buta_attack.png"},  # ★
 ]
 
 
