@@ -1,11 +1,13 @@
 """
-にゃんこ大戦争風ゲームの共通基本機能（ベース部分）
+にゃんこ大戦争風ゲーム（ベース＋コインキャッチ＋にゃんこ砲）
 
 右側の自陣から味方ユニット（ネコ）を出撃させ，左側の敵陣を攻略するゲーム．
 お金は時間とともに増え，お金とクールダウンの許す範囲でユニットを出撃できる．
 ユニットは敵に当たると立ち止まって攻撃し，敵陣のHPを0にすれば勝利．
 
 操作：数字キー1～3，または画面下のボタンのクリックでユニットを出撃
+   空から落ちてくるコインをクリックでキャッチするとお金が増加
+   自陣上の「準備OK！」をクリックするとにゃんこ砲発射！
 """
 import os
 import random
@@ -19,10 +21,11 @@ WIDTH, HEIGHT = 1100, 650
 GROUND_Y = 500  # 地面の高さ（ユニットの足元のy座標）
 FPS = 50
 ENEMY_INTERVAL = 150  # 敵が出現する間隔（フレーム数）
+COIN_INTERVAL = 180   # コインが出現する間隔（フレーム数）
 BASE_HP = 1000
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-# 味方ユニットの性能（追加機能として種類を増やしやすいように辞書で管理）
+# 味方ユニットの性能
 CAT_SPECS = [
     {"name": "ネコ", "cost": 50, "hp": 100, "atk": 10, "speed": 2.0,
      "range": 20, "interval": 40, "cooldown": 100,
@@ -47,11 +50,6 @@ ENEMY_SPECS = [
 
 
 def get_font(size: int) -> pg.font.Font:
-    """
-    日本語を表示できるフォントを探して返す
-    引数 size：フォントサイズ
-    戻り値：Fontオブジェクト（見つからない場合は標準フォント）
-    """
     name = pg.font.match_font(
         "meiryo,yugothic,msgothic,notosanscjkjp,hiraginosans,takaopgothic"
     )
@@ -59,27 +57,15 @@ def get_font(size: int) -> pg.font.Font:
 
 
 def draw_hp_bar(screen: pg.Surface, rct: pg.Rect, hp: int, max_hp: int) -> None:
-    """
-    対象の頭上にHPバーを描画する
-    引数 screen：画面Surface
-    引数 rct：対象のRect
-    引数 hp：現在のHP
-    引数 max_hp：最大HP
-    """
     ratio = max(0, hp) / max_hp
     bar = pg.Rect(rct.left, rct.top - 10, rct.width, 6)
     pg.draw.rect(screen, (80, 80, 80), bar)
+    pg.draw.rect(screen, (0, 0, 0), bar, 1)
     pg.draw.rect(screen, (0, 200, 0), (bar.left, bar.top, int(bar.width * ratio), bar.height))
 
 
 class Base:
-    """
-    自陣・敵陣（城）に関するクラス
-    """
     def __init__(self, is_cat: bool) -> None:
-        """
-        引数 is_cat：Trueなら自陣（右側），Falseなら敵陣（左側）
-        """
         self.hp = BASE_HP
         self.max_hp = BASE_HP
         self.image = pg.Surface((80, 200))
@@ -90,29 +76,17 @@ class Base:
         self.rect.centerx = WIDTH - 80 if is_cat else 80
 
     def draw(self, screen: pg.Surface) -> None:
-        """
-        城とHPバーを描画する
-        引数 screen：画面Surface
-        """
         screen.blit(self.image, self.rect)
         draw_hp_bar(screen, self.rect, self.hp, self.max_hp)
 
 
 class Unit(pg.sprite.Sprite):
-    """
-    味方・敵のユニットに関するクラス
-    """
     def __init__(self, spec: dict, is_cat: bool, x: int) -> None:
-        """
-        引数 spec：ユニットの性能を表す辞書
-        引数 is_cat：Trueなら味方（左へ進む），Falseなら敵（右へ進む）
-        引数 x：出現位置のx座標（味方は右端，敵は左端をこの座標に合わせる）
-        """
         super().__init__()
         self.spec = spec
         self.hp = spec["hp"]
         self.dir = -1 if is_cat else +1
-        self.atk_timer = spec["interval"]  # 最初の1発はすぐ撃てるようにする
+        self.atk_timer = spec["interval"]
         self.image = pg.Surface(spec["size"])
         self.image.fill(spec["color"])
         pg.draw.rect(self.image, (0, 0, 0), self.image.get_rect(), 2)
@@ -122,25 +96,14 @@ class Unit(pg.sprite.Sprite):
             self.rect.right = x
         else:
             self.rect.left = x
-        self.x = float(self.rect.centerx)  # 小数の速度を扱うため，x座標は別に保持する
+        self.x = float(self.rect.centerx)
 
     def can_reach(self, rct: pg.Rect) -> bool:
-        """
-        対象のRectが攻撃射程内にあるかを判定する
-        引数 rct：敵ユニットまたは敵陣のRect
-        戻り値：射程内ならTrue
-        """
         if self.dir < 0:
             return rct.right >= self.rect.left - self.spec["range"]
         return rct.left <= self.rect.right + self.spec["range"]
 
     def find_target(self, opponents: pg.sprite.Group, base: Base) -> "Unit | Base | None":
-        """
-        攻撃対象を探す（射程内のユニットのうち最も近いもの，いなければ敵城）
-        引数 opponents：相手側ユニットのグループ
-        引数 base：相手側の城
-        戻り値：攻撃対象（いなければNone）
-        """
         cands = [o for o in opponents if self.can_reach(o.rect)]
         if cands:
             return min(cands, key=lambda o: abs(o.rect.centerx - self.rect.centerx))
@@ -149,11 +112,6 @@ class Unit(pg.sprite.Sprite):
         return None
 
     def update(self, opponents: pg.sprite.Group, base: Base) -> None:
-        """
-        HP判定，攻撃，移動を行う
-        引数 opponents：相手側ユニットのグループ
-        引数 base：相手側の城
-        """
         if self.hp <= 0:
             self.kill()
             return
@@ -168,27 +126,108 @@ class Unit(pg.sprite.Sprite):
             self.atk_timer = 0
 
 
+class Coin(pg.sprite.Sprite):
+    def __init__(self, reward: int = 50) -> None:
+        super().__init__()
+        self.reward = reward
+        self.radius = 16
+        self.image = pg.Surface((self.radius * 2, self.radius * 2), pg.SRCALPHA)
+        pg.draw.circle(self.image, (255, 215, 0), (self.radius, self.radius), self.radius)
+        pg.draw.circle(self.image, (218, 165, 32), (self.radius, self.radius), self.radius, 2)
+        
+        self.rect = self.image.get_rect()
+        self.rect.centerx = random.randint(50, WIDTH - 50)
+        self.rect.bottom = 0
+        self.speed = random.uniform(1.5, 3.0)
+
+    def update(self) -> None:
+        self.rect.y += self.speed
+        if self.rect.top > GROUND_Y:
+            self.kill()
+
+
+class CatCannon:
+    """
+    にゃんこ砲クラス
+    """
+    def __init__(self, cat_base: Base) -> None:
+        self.cat_base = cat_base
+        self.max_charge = 1000  # チャージ完了までのフレーム数（10秒）
+        self.charge = 0        # 現在のチャージ量
+        self.damage = 200      # 敵全体へのダメージ
+        self.beam_timer = 0    # ビームの描画用タイマー
+
+        # 自陣の城の上に表示する「準備OK！」UIのRect
+        self.btn_rect = pg.Rect(0, 0, 110, 40)
+        self.btn_rect.centerx = cat_base.rect.centerx
+        self.btn_rect.bottom = cat_base.rect.top - 15
+
+    def is_ready(self) -> bool:
+        """チャージが満タンかどうか"""
+        return self.charge >= self.max_charge
+
+    def update(self) -> None:
+        """チャージ進行およびビームタイマー更新"""
+        if not self.is_ready():
+            self.charge += 1
+        if self.beam_timer > 0:
+            self.beam_timer -= 1
+
+    def try_fire(self, pos: tuple[int, int], enemies: pg.sprite.Group) -> bool:
+        """
+        「準備OK！」ボタンが押されたらビームを発射し、画面内の敵全体にダメージ
+        """
+        if self.is_ready() and self.btn_rect.collidepoint(pos):
+            self.charge = 0
+            self.beam_timer = 15  # ビーム表示フレーム数
+            # 全敵ユニットへダメージを与える
+            for enemy in enemies:
+                enemy.hp -= self.damage
+            return True
+        return False
+
+    def draw(self, screen: pg.Surface, font: pg.font.Font) -> None:
+        """UI（準備OKボタン / ゲージ）とビームの描画"""
+        # --- ビームエフェクト描画 ---
+        if self.beam_timer > 0:
+            beam_rect = pg.Rect(0, GROUND_Y - 80, self.cat_base.rect.centerx, 80)
+            beam_surface = pg.Surface((beam_rect.width, beam_rect.height), pg.SRCALPHA)
+            # (R, G, B, 透明度A)
+            beam_surface.fill((200, 100, 255, 180))  # 紫色の外光
+            pg.draw.rect(beam_surface, (230, 180, 255, 230), (0, 15, beam_rect.width, 50))  # 明るい紫色の芯
+            screen.blit(beam_surface, beam_rect)
+
+        # --- UI描画（城の上） ---
+        if self.is_ready():
+            # 準備OKボタン（点滅っぽく黄色で強調）
+            pg.draw.rect(screen, (255, 215, 0), self.btn_rect, border_radius=8)
+            pg.draw.rect(screen, (255, 255, 255), self.btn_rect, 3, border_radius=8)
+            text = font.render("準備OK!", True, (0, 0, 0))
+            screen.blit(text, text.get_rect(center=self.btn_rect.center))
+        else:
+            # チャージ中ゲージ
+            gauge_bg = pg.Rect(self.btn_rect.left, self.btn_rect.bottom - 12, self.btn_rect.width, 12)
+            ratio = self.charge / self.max_charge
+            gauge_fg = pg.Rect(gauge_bg.left, gauge_bg.top, int(gauge_bg.width * ratio), gauge_bg.height)
+            
+            pg.draw.rect(screen, (60, 60, 60), gauge_bg, border_radius=4)
+            pg.draw.rect(screen, (100, 200, 255), gauge_fg, border_radius=4)
+            pg.draw.rect(screen, (0, 0, 0), gauge_bg, 1, border_radius=4)
+
+
 class Wallet:
-    """
-    お金（所持金）に関するクラス
-    """
     def __init__(self) -> None:
         self.money = 100.0
         self.max_money = 1000
-        self.income = 0.5  # 1フレームあたりの増加量
+        self.income = 0.5
 
     def update(self) -> None:
-        """
-        お金を時間経過で増やす（上限あり）
-        """
         self.money = min(self.max_money, self.money + self.income)
 
+    def add_money(self, amount: int) -> None:
+        self.money = min(self.max_money, self.money + amount)
+
     def pay(self, cost: int) -> bool:
-        """
-        所持金が足りれば支払う
-        引数 cost：支払う金額
-        戻り値：支払えたらTrue，足りなければFalse
-        """
         if self.money < cost:
             return False
         self.money -= cost
@@ -196,23 +235,11 @@ class Wallet:
 
 
 def make_buttons() -> list[pg.Rect]:
-    """
-    出撃ボタンのRectのリストを作る
-    戻り値：味方ユニットの種類ごとのボタンRect
-    """
     return [pg.Rect(20 + i * 170, 540, 160, 90) for i in range(len(CAT_SPECS))]
 
 
 def try_spawn(idx: int, wallet: Wallet, cooldowns: list[int],
               cats: pg.sprite.Group, cat_base: Base) -> None:
-    """
-    お金とクールダウンの条件を満たせば，味方ユニットを出撃させる
-    引数 idx：CAT_SPECSの番号
-    引数 wallet：所持金
-    引数 cooldowns：ユニットごとの残りクールダウン（フレーム数）
-    引数 cats：味方ユニットのグループ
-    引数 cat_base：自陣
-    """
     spec = CAT_SPECS[idx]
     if cooldowns[idx] > 0 or not wallet.pay(spec["cost"]):
         return
@@ -222,18 +249,10 @@ def try_spawn(idx: int, wallet: Wallet, cooldowns: list[int],
 
 def draw_ui(screen: pg.Surface, font: pg.font.Font, wallet: Wallet,
             cooldowns: list[int], buttons: list[pg.Rect]) -> None:
-    """
-    所持金表示と出撃ボタンを描画する
-    引数 screen：画面Surface
-    引数 font：表示用フォント
-    引数 wallet：所持金
-    引数 cooldowns：ユニットごとの残りクールダウン
-    引数 buttons：出撃ボタンのRectリスト
-    """
     for i, (spec, btn) in enumerate(zip(CAT_SPECS, buttons)):
         usable = cooldowns[i] == 0 and wallet.money >= spec["cost"]
         pg.draw.rect(screen, (255, 230, 120) if usable else (150, 150, 150), btn)
-        if cooldowns[i] > 0:  # クールダウン中は残り時間を暗いゲージで示す
+        if cooldowns[i] > 0:
             h = int(btn.height * cooldowns[i] / spec["cooldown"])
             pg.draw.rect(screen, (90, 90, 90), (btn.left, btn.top, btn.width, h))
         pg.draw.rect(screen, (0, 0, 0), btn, 3)
@@ -246,22 +265,12 @@ def draw_ui(screen: pg.Surface, font: pg.font.Font, wallet: Wallet,
 
 
 def draw_field(screen: pg.Surface) -> None:
-    """
-    背景（空と地面）を描画する
-    引数 screen：画面Surface
-    """
     screen.fill((135, 206, 235))
     pg.draw.rect(screen, (150, 110, 70), (0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y))
     pg.draw.line(screen, (0, 0, 0), (0, GROUND_Y), (WIDTH, GROUND_Y), 3)
 
 
 def show_result(screen: pg.Surface, font: pg.font.Font, message: str) -> None:
-    """
-    勝敗の結果を3秒間表示する
-    引数 screen：画面Surface
-    引数 font：表示用フォント
-    引数 message：表示する文字列
-    """
     overlay = pg.Surface((WIDTH, HEIGHT))
     overlay.set_alpha(150)
     screen.blit(overlay, (0, 0))
@@ -275,11 +284,14 @@ def main() -> None:
     pg.display.set_caption("ネコ大戦争（仮）")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     font = get_font(26)
+    btn_font = get_font(20)
     big_font = get_font(90)
     clock = pg.time.Clock()
 
     cat_base, enemy_base = Base(True), Base(False)
     cats, enemies = pg.sprite.Group(), pg.sprite.Group()
+    coins = pg.sprite.Group()
+    cannon = CatCannon(cat_base)  # にゃんこ砲生成
     wallet = Wallet()
     cooldowns = [0] * len(CAT_SPECS)
     buttons = make_buttons()
@@ -291,28 +303,59 @@ def main() -> None:
                 return
             if event.type == pg.KEYDOWN and pg.K_1 <= event.key < pg.K_1 + len(CAT_SPECS):
                 try_spawn(event.key - pg.K_1, wallet, cooldowns, cats, cat_base)
+
             if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
-                for i, btn in enumerate(buttons):
-                    if btn.collidepoint(event.pos):
-                        try_spawn(i, wallet, cooldowns, cats, cat_base)
+                # 1. にゃんこ砲発射判定
+                if cannon.try_fire(event.pos, enemies):
+                    continue
+
+                # 2. コインキャッチ判定
+                clicked_coin = False
+                for coin in list(coins):
+                    if coin.rect.collidepoint(event.pos):
+                        wallet.add_money(coin.reward)
+                        coin.kill()
+                        clicked_coin = True
+                        break
+
+                # 3. 出撃ボタン判定
+                if not clicked_coin:
+                    for i, btn in enumerate(buttons):
+                        if btn.collidepoint(event.pos):
+                            try_spawn(i, wallet, cooldowns, cats, cat_base)
 
         wallet.update()
+        cannon.update()  # にゃんこ砲のチャージ更新
+
         for i in range(len(cooldowns)):
             cooldowns[i] = max(0, cooldowns[i] - 1)
+
+        # 敵の定期出現
         if tmr % ENEMY_INTERVAL == ENEMY_INTERVAL - 1:
             spec = random.choices(ENEMY_SPECS, weights=[3, 1])[0]
             enemies.add(Unit(spec, False, enemy_base.rect.right))
+
+        # コインの定期出現
+        if tmr % COIN_INTERVAL == COIN_INTERVAL - 1:
+            coins.add(Coin(reward=50))
+
         cats.update(enemies, enemy_base)
         enemies.update(cats, cat_base)
+        coins.update()
 
+        # 描画処理
         draw_field(screen)
         enemy_base.draw(screen)
         cat_base.draw(screen)
         cats.draw(screen)
         enemies.draw(screen)
+        coins.draw(screen)
+
         for unit in list(cats) + list(enemies):
             draw_hp_bar(screen, unit.rect, unit.hp, unit.spec["hp"])
+
         draw_ui(screen, font, wallet, cooldowns, buttons)
+        cannon.draw(screen, btn_font)  # にゃんこ砲のUIとビームを描画
 
         if enemy_base.hp <= 0:
             show_result(screen, big_font, "勝利！")
@@ -320,6 +363,7 @@ def main() -> None:
         if cat_base.hp <= 0:
             show_result(screen, big_font, "敗北…")
             return
+
         pg.display.update()
         tmr += 1
         clock.tick(FPS)
