@@ -98,38 +98,40 @@ CAT_SPECS = [
      "color": (255, 220, 160), "size": (100, 100),
      "walk": ["neko_walk1.png", "neko_walk2.png"],  # ★
      "attack": "neko_attack.png"},  # ★
-    {"name": "タンク", "cost": 100, "hp": 500, "atk": 6, "speed": 1.2,
+    {"name": "カバタンク", "cost": 100, "hp": 500, "atk": 6, "speed": 1.2,
      "range": 20, "interval": 50, "cooldown": 200,
      "color": (200, 200, 255), "size": (150, 170),
      "walk": ["tank_walk1.png", "tank_walk2.png"],  
      "attack": "tank_attack.png"},
-    {"name": "アーチャー", "kind": "shooter", "cost": 120, "hp": 80, "atk": 12,
+    {"name": "投げザル", "kind": "shooter", "cost": 120, "hp": 80, "atk": 12,
      "speed": 1.6, "range": 220, "interval": 60, "cooldown": 150,
      "color": (150, 255, 150), "size": (135, 155), 
      "walk": ["saru_walk1.png", "saru_walk2.png"],  
      "attack": "saru_attack.png"},
-    {"name": "ボンバー", "kind": "area", "cost": 200, "hp": 150, "atk": 20,
+    {"name": "キリン", "cost": 250, "hp": 120, "atk": 35, "speed": 1.8,
+    "range": 60, "interval": 70, "cooldown": 250,
+    "color": (255, 150, 150), "size": (140, 160),
+    "walk": ["kick_walk1.png", "kick_walk2.png"],  # ★
+    "attack": "kick_attack.png"},  # ★ 
+    {"name": "ワニボンバー", "kind": "area", "cost": 500, "hp": 150, "atk": 20,
      "area": 80, "speed": 1.5, "range": 40, "interval": 90, "cooldown": 300,
      "color": (255, 120, 0), "size": (145, 155),
      "walk": ["bom_walk1.png", "bom_walk2.png"],  
      "attack": "bom_attack.png"},
-    {"name": "飛行戦艦", "kind": "warship", "cost": 1000, "hp": 600, "atk": 25,
+    {"name": "ケサラン", "kind": "kesaran", "cost": 800, "hp": 60, "atk": 6,
+    "area": 100, "knockback": 60, "stun": 40, "fly": 30, "speed": 1.4,
+    "range": 350, "interval": 100, "cooldown": 400,
+    "color": (255, 255, 255), "size": (136, 136),
+    "walk": ["ke_walk1.png", "ke_walk2.png"],  
+    "attack": "ke_attack.png"}, 
+    {"name": "ドラゴン", "kind": "warship", "cost": 1000, "hp": 600, "atk": 25,
      "area": 150, "knockback": 40, "blast_every": 4, "blast_area": 320,
      "fly": 250, "speed": 1.0, "range": 200, "interval": 80, "cooldown": 600,
      "color": (90, 110, 140), "size": (250, 170),
      "walk": ["dora_walk1.png", "dora_walk2.png"],  
      "attack": "dora_attack.png"},
-    {"name": "ケサラン", "kind": "kesaran", "cost": 300, "hp": 60, "atk": 6,
-     "area": 100, "knockback": 60, "stun": 40, "fly": 30, "speed": 1.4,
-     "range": 350, "interval": 100, "cooldown": 400,
-     "color": (255, 255, 255), "size": (136, 136),
-     "walk": ["ke_walk1.png", "ke_walk2.png"],  
-     "attack": "ke_attack.png"},
-    {"name": "キック", "cost": 150, "hp": 120, "atk": 35, "speed": 1.8,
-     "range": 60, "interval": 70, "cooldown": 250,
-     "color": (255, 150, 150), "size": (140, 160),
-     "walk": ["kick_walk1.png", "kick_walk2.png"],  # ★
-     "attack": "kick_attack.png"},  # ★
+    
+    
 ]
 
 # 敵ユニットの性能
