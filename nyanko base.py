@@ -76,12 +76,12 @@ CAT_SPECS = [
      "attack": "neko_attack.png"},  # ★
     {"name": "タンク", "cost": 100, "hp": 500, "atk": 6, "speed": 1.2,
      "range": 20, "interval": 50, "cooldown": 200,
-     "color": (200, 200, 255), "size": (50, 70),
+     "color": (200, 200, 255), "size": (150, 170),
      "walk": ["tank_walk1.png", "tank_walk2.png"],  # ★
      "attack": "tank_attack.png"},  # ★
     {"name": "キック", "cost": 150, "hp": 120, "atk": 35, "speed": 1.8,
      "range": 60, "interval": 70, "cooldown": 250,
-     "color": (255, 150, 150), "size": (40, 60),
+     "color": (255, 150, 150), "size": (140, 160),
      "walk": ["kick_walk1.png", "kick_walk2.png"],  # ★
      "attack": "kick_attack.png"},  # ★
 ]
@@ -95,7 +95,7 @@ ENEMY_SPECS = [
      "attack": "wanko_attack.png"},  # ★
     {"name": "ブタ", "hp": 500, "atk": 20, "speed": 1.0,
      "range": 20, "interval": 60,
-     "color": (255, 170, 200), "size": (60, 80),
+     "color": (255, 170, 200), "size": (160, 180),
      "walk": ["buta_walk1.png", "buta_walk2.png"],  # ★
      "attack": "buta_attack.png"},  # ★
 ]
