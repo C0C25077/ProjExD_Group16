@@ -53,15 +53,15 @@ ATK_POSE_FRAMES = 12
 
 # 効果音（★ファイル名を自分の素材に合わせる．wavかoggがおすすめ）
 SE_FILES = {
-    "attack_cat": "se_attack_cat.wav",  # ★味方の攻撃音
-    "attack_enemy": "se_attack_enemy.wav",  # ★敵の攻撃音
-    "spawn": "se_spawn.wav",  # ★出撃音
-    "win": "se_win.wav",  # ★勝利音
-    "lose": "se_lose.wav",  # ★敗北音
+    "attack_cat": "se_attack_cat.mp3",  # ★味方の攻撃音
+    "attack_enemy": "se_attack_cat.mp3",  # ★敵の攻撃音
+    "spawn": "se_spawn.mp3",  # ★出撃音
+    "win": "se_win.mp3",  # ★勝利音
+    "lose": "se_lose.mp3",  # ★敗北音
 }
 BGM_FILE = "bgm.mp3"  # ★BGM（mp3，ogg，wavなど）
-BGM_VOLUME = 0.4  # BGMの音量（0.0～1.0）
-SE_VOLUME = 0.6  # 効果音の音量（0.0～1.0）
+BGM_VOLUME = 0.3  # BGMの音量（0.0～1.0）
+SE_VOLUME = 0.5  # 効果音の音量（0.0～1.0）
 SE_MIN_INTERVAL = 80  # 同じ効果音を連続で鳴らさない最小間隔（ミリ秒）
 # ======================================================================
 
