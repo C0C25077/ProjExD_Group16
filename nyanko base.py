@@ -71,7 +71,7 @@ SE_MIN_INTERVAL = 80  # 同じ効果音を連続で鳴らさない最小間隔�
 CAT_SPECS = [
     {"name": "ネコ", "cost": 50, "hp": 100, "atk": 10, "speed": 2.0,
      "range": 20, "interval": 40, "cooldown": 100,
-     "color": (255, 220, 160), "size": (40, 50),
+     "color": (255, 220, 160), "size": (100, 100),
      "walk": ["neko_walk1.png", "neko_walk2.png"],  # ★
      "attack": "neko_attack.png"},  # ★
     {"name": "タンク", "cost": 100, "hp": 500, "atk": 6, "speed": 1.2,
@@ -90,7 +90,7 @@ CAT_SPECS = [
 ENEMY_SPECS = [
     {"name": "ワンコ", "hp": 120, "atk": 8, "speed": 1.5,
      "range": 20, "interval": 45,
-     "color": (240, 240, 240), "size": (40, 40),
+     "color": (240, 240, 240), "size": (100, 100),
      "walk": ["wanko_walk1.png", "wanko_walk2.png"],  # ★
      "attack": "wanko_attack.png"},  # ★
     {"name": "ブタ", "hp": 500, "atk": 20, "speed": 1.0,
