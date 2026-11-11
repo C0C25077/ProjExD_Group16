@@ -1,5 +1,5 @@
 # 工科大戦争
-![ゲーム画面](fig_screen_shot.png)
+![ゲーム画面](fig/fig_screen_shot.png)
 
 ## 実行環境の必要条件
 * python >= 3.10
