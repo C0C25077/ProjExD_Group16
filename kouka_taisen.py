@@ -11,6 +11,7 @@
 - Wキー / 0キー または画面右下ボタン：財布レベルアップ（お金の増加速度と上限アップ）
 - 画面上から落ちるコインをクリック：キャッチしてお金が増加
 - 自陣上の「準備OK」をクリック：にゃんこ砲発射（画面内の敵全体にダメージ）
+- Mキー：BGM・効果音のミュート切り替え
 """
 """
 操作：数字キー1～3,または画面下のボタンのクリックでユニットを出撃
@@ -150,7 +151,7 @@ ENEMY_SPECS = [
 
 #--------------------------------------------------------- ボスユニットの性能（追加機能3）ボスの追加
 BOSS_SPEC = {
-    "name": "ボス", "hp": 1500, "atk": 40, "speed": 0.8,
+    "name": "ボス", "kind": "boss" ,"hp": 1500, "atk": 40, "speed": 0.8,
     "range": 40, "interval": 80,
     "color": (150, 75, 0), "size": (190, 220),
     "walk": ["boss_walk1.png"],  
@@ -548,14 +549,15 @@ class BossUnit(Unit):
         self.enraged = False
 
     def update(self, opponents: pg.sprite.Group, base: Base, sounds: SoundManager) -> None:
-            """
-                    HPを見て怒りモードへ移行してから，通常の更新を行う
-                    引数 opponents：相手側ユニットのグループ
-                    引数 base：相手側の城
-            """
-            if not self.enraged and 0 < self.hp <= self.spec["hp"] / 2:
-                self.enrage()
-            super().update(opponents, base, sounds)
+        """
+        HPを見て怒りモードへ移行してから，通常の更新を行う
+        引数 opponents：相手側ユニットのグループ
+        引数 base：相手側の城
+        引数 sounds：効果音を鳴らすためのSoundManager
+        """
+        if not self.enraged and 0 < self.hp <= self.spec["hp"] / 2:
+            self.enrage()
+        super().update(opponents, base, sounds)
 
     def enrage(self) -> None:
         """
@@ -571,6 +573,7 @@ class BossUnit(Unit):
         for group in self.groups():
             for i in range(2):
                 group.add(create_unit(ENEMY_SPECS[0], False, self.rect.left - 50 * i))
+
 
 def push_back(unit: Unit, dist: int) -> None:
     """
@@ -689,7 +692,7 @@ UNIT_CLASSES = {
 }
 
 
-def create_unit(spec: dict, is_cat: bool, x: int) -> Unit:
+def create_unit(spec: dict, is_cat: bool, x: int, rate: float = 1.0) -> Unit:
     """
     性能データのkindに応じたクラスでユニットを生成する
     引数 spec：ユニットの性能を表す辞書
@@ -697,7 +700,12 @@ def create_unit(spec: dict, is_cat: bool, x: int) -> Unit:
     引数 x：出現位置のx座標
     戻り値：生成したユニット
     """
-    return UNIT_CLASSES[spec.get("kind", "normal")](spec, is_cat, x)
+    unit = UNIT_CLASSES[spec.get("kind", "normal")](spec, is_cat, x)
+    if not is_cat:
+        unit.spec["hp"] = int(unit.spec["hp"] * rate)
+        unit.spec["atk"] = int(unit.spec["atk"] * rate)
+        unit.hp = unit.spec["hp"]
+    return unit
 
 
 class Coin(pg.sprite.Sprite):
@@ -726,7 +734,7 @@ class CatCannon:
     """
     def __init__(self, cat_base: Base) -> None:
         self.cat_base = cat_base
-        self.max_charge = 1000  # チャージ完了までのフレーム数（10秒）
+        self.max_charge = 1000  # チャージ完了までのフレーム数（20秒）
         self.charge = 0        # 現在のチャージ量
         self.damage = 200      # 敵全体へのダメージ
         self.beam_timer = 0    # ビームの描画用タイマー
@@ -886,15 +894,7 @@ def try_spawn(
         cooldowns (List[int]): ユニットごとの残りクールダウン
         cats (pg.sprite.Group): 味方ユニットのグループ
         cat_base (Base): 自陣
-    """
-    """
-    お金とクールダウンの条件を満たせば，味方ユニットを出撃させる
-        引数 idx：CAT_SPECSの番号
-        引数 wallet：所持金
-        引数 cooldowns：ユニットごとの残りクールダウン（フレーム数）
-        引数 cats：味方ユニットのグループ
-        引数 cat_base：自陣
-        引数 sounds：出撃音を鳴らすためのSoundManager
+        sounds (SoundManager): 出撃音を鳴らすためのSoundManager
     """
     spec = CAT_SPECS[idx]
     if cooldowns[idx] > 0 or not wallet.pay(spec["cost"]):
@@ -1003,6 +1003,7 @@ def show_result(screen: pg.Surface, font: pg.font.Font, message: str) -> None:
     pg.display.update()
     time.sleep(3)
 
+
 #------------------------------------------------------------------------------------------------------------------------#追加機能3
 def select_stage_screen(screen: pg.Surface, font: pg.font.Font, title_font: pg.font.Font) -> dict | None:    
     """
@@ -1043,6 +1044,7 @@ def select_stage_screen(screen: pg.Surface, font: pg.font.Font, title_font: pg.f
         clock.tick(FPS)
 #------------------------------------------------------------------------------------- #追加機能3
 
+
 def main() -> None:
     pg.display.set_caption("工科大戦争")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -1082,7 +1084,7 @@ def main() -> None:
             if event.type == pg.KEYDOWN:
                 # 数字キー 1～len(CAT_SPECS) で出撃
                 if pg.K_1 <= event.key < pg.K_1 + len(CAT_SPECS):
-                    try_spawn(event.key - pg.K_1, wallet, cooldowns, cats, cat_base)
+                    try_spawn(event.key - pg.K_1, wallet, cooldowns, cats, cat_base,sounds)
                 # Wキーまたは 0 キーで財布レベルアップ
                 elif event.key in (pg.K_w, pg.K_0, pg.K_KP0):
                     wallet.level_up()
@@ -1111,32 +1113,23 @@ def main() -> None:
                         wallet.level_up()
             if event.type == pg.KEYDOWN and event.key == pg.K_m:
                 sounds.toggle_mute()
-            if event.type == pg.KEYDOWN and pg.K_1 <= event.key < pg.K_1 + len(CAT_SPECS):
-                try_spawn(event.key - pg.K_1, wallet, cooldowns, cats, cat_base, sounds)
-            if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
-                for i, btn in enumerate(buttons):
-                    if btn.collidepoint(event.pos):
-                        try_spawn(i, wallet, cooldowns, cats, cat_base, sounds)
 
         wallet.update()
         cannon.update()  # にゃんこ砲のチャージ更新
 
         for i in range(len(cooldowns)):
             cooldowns[i] = max(0, cooldowns[i] - 1)
-        if tmr % ENEMY_INTERVAL == ENEMY_INTERVAL - 1:
-            spec = random.choices(ENEMY_SPECS, weights=[3, 1])[0]
-            enemies.add(Unit(spec, False, enemy_base.rect.right))
         cats.update(enemies, enemy_base, sounds)
         enemies.update(cats, cat_base, sounds)
         coins.update()
 
         if tmr % ENEMY_INTERVAL == ENEMY_INTERVAL - 1:
             spec = random.choices(ENEMY_SPECS, weights=[3, 1])[0]
-            enemies.add(create_unit(spec, False, enemy_base.rect.right))
+            enemies.add(create_unit(spec, False, enemy_base.rect.right,enemy_rate))
         if tmr % COIN_INTERVAL == COIN_INTERVAL - 1:
             coins.add(Coin())
         if not boss_spawned and tmr >= BOSS_TIME:
-            enemies.add(create_unit(BOSS_SPEC, False, enemy_base.rect.right))
+            enemies.add(create_unit(BOSS_SPEC, False, enemy_base.rect.right,enemy_rate))
             boss_spawned = True
 
 
