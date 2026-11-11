@@ -1,5 +1,5 @@
 # 工科大戦争
-![ゲーム画面](fig/screen_shot.png)
+![ゲーム画面](fig_screen_shot.png)
 
 ## 実行環境の必要条件
 * python >= 3.10
@@ -7,7 +7,7 @@
 
 ## 実行方法
 """
-python nyanko_base.py
+python kouka_taisen.py
 """
 * 画像は `fig/`、音は `sound/` フォルダに置く（ゲームのファイルと同じ場所）
 * 素材ファイルが見つからない場合は、四角形の表示・無音のままゲームが動く
