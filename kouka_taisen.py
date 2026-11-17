@@ -540,6 +540,17 @@ class StopperUnit(Unit):
             target.stun = self.spec["stun"]
 
 
+def tint_red(img: pg.Surface) -> pg.Surface:
+    """
+    画像を赤く染めたコピーを返す（元の画像は書き換えない）
+    引数 img：元の画像のSurface
+    戻り値：赤みを足した新しいSurface（透明な部分は透明のまま）
+    """
+    tinted = img.copy()
+    tinted.fill((120, 0, 0, 0), special_flags=pg.BLEND_RGB_ADD)
+    return tinted
+
+
 class BossUnit(Unit):
     """
     ボスユニット：HPが半分以下になると怒りモードになり，強化されて手下を呼ぶ
@@ -568,8 +579,11 @@ class BossUnit(Unit):
         self.spec["atk"] = int(self.spec["atk"] * 1.5)
         self.spec["speed"] *= 1.8
         self.spec["interval"] = int(self.spec["interval"] * 0.6)
-        self.image.fill((255, 0, 0))
-        pg.draw.rect(self.image, (0, 0, 0), self.image.get_rect(), 2)
+        # 画像は使い回されるので，元の画像は書き換えず，赤く染めたコピーに差し替える
+        self.walk_imgs = [tint_red(img) for img in self.walk_imgs]
+        if self.atk_img is not None:
+            self.atk_img = tint_red(self.atk_img)
+        self.image = self.walk_imgs[0] 
         for group in self.groups():
             for i in range(2):
                 group.add(create_unit(ENEMY_SPECS[0], False, self.rect.left - 50 * i))
